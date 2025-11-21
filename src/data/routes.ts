@@ -9,9 +9,92 @@
  * - Checkpoint numbers from driver interviews
  */
 
-import { Route } from '@/lib/types';
+// src/data/routes.ts
 
-export const routes: Route[] = [
+import { Route, SecurityLevel, RoadCondition } from '@/lib/types';
+// ... existing imports and route array ...
+
+/**
+ * Helper to determine the worst security level between two legs
+ */
+function getWorstSecurity(l1: SecurityLevel, l2: SecurityLevel): SecurityLevel {
+  const levels = ['low', 'medium', 'high'];
+  const i1 = levels.indexOf(l1);
+  const i2 = levels.indexOf(l2);
+  return levels[Math.max(i1, i2)] as SecurityLevel;
+}
+
+/**
+ * Helper to determine combined road condition
+ */
+function getCombinedRoadCondition(c1: RoadCondition, c2: RoadCondition): RoadCondition {
+  if (c1 === 'unpaved' || c2 === 'unpaved') return 'unpaved';
+  if (c1 === 'mixed' || c2 === 'mixed') return 'mixed';
+  return 'paved';
+}
+
+export function findRoute(origin: string, destination: string): Route | null {
+  // 1. Try to find a DIRECT route first (Preferred)
+  let directRoute = routes.find(
+    r => (r.origin === origin && r.destination === destination) ||
+         (r.origin === destination && r.destination === origin)
+  );
+
+  if (directRoute) return directRoute;
+
+  // 2. If no direct route, look for a 2-LEG route via a HUB
+  // We look for a city 'X' where Origin->X AND X->Destination exist
+  
+  // Get all routes connected to origin
+  const originRoutes = routes.filter(r => r.origin === origin || r.destination === origin);
+  
+  for (const leg1 of originRoutes) {
+    // Determine the hub city (the end of leg 1)
+    const hub = leg1.origin === origin ? leg1.destination : leg1.origin;
+    
+    // Find a route from Hub -> Destination
+    const leg2 = routes.find(
+      r => (r.origin === hub && r.destination === destination) ||
+           (r.origin === destination && r.destination === hub)
+    );
+
+    if (leg2) {
+      // FOUND A CONNECTING ROUTE! 
+      // Now we synthesize a new "Route" object combining the data
+      
+      // Transfer Penalty: Add 4 hours for transloading/resting at the hub
+      const TRANSFER_TIME_PENALTY = 4; 
+
+      return {
+        id: `${origin}-${hub}-${destination}`,
+        origin: origin,
+        destination: destination,
+        distance: leg1.distance + leg2.distance,
+        
+        // Combine road conditions (if any part is bad, the route is "mixed")
+        roadCondition: getCombinedRoadCondition(leg1.roadCondition, leg2.roadCondition),
+        
+        // Sum times + penalty
+        drySeasonTime: leg1.drySeasonTime + leg2.drySeasonTime + TRANSFER_TIME_PENALTY,
+        rainySeasonTime: leg1.rainySeasonTime + leg2.rainySeasonTime + TRANSFER_TIME_PENALTY,
+        
+        // Take the worst security level of the two
+        securityLevel: getWorstSecurity(leg1.securityLevel, leg2.securityLevel),
+        
+        // Sum checkpoints
+        checkpoints: leg1.checkpoints + leg2.checkpoints,
+        
+        // Combine notes
+        notes: `Multi-leg route via ${hub}. ${leg1.notes || ''} / ${leg2.notes || ''}`
+      };
+    }
+  }
+
+  // 3. If still nothing, return null
+  return null;
+}
+
+const routes: Route[] = [
   // ============================================
   // DOUALA ROUTES (Major port city)
   // ============================================
@@ -188,6 +271,125 @@ export const routes: Route[] = [
     checkpoints: 1,
   },
   
+  // Add these to your routes const in src/data/routes.ts
+
+  // ============================================
+  // NORTHERN CORRIDOR (LONG HAUL)
+  // ============================================
+  
+  // Yaoundé -> Ngaoundéré (The Gateway to the North)
+  {
+    id: 'yaounde-ngaoundere',
+    origin: 'yaounde',
+    destination: 'ngaoundere',
+    distance: 850, // Via Bertoua/Garoua-Boulaï
+    roadCondition: 'paved',
+    drySeasonTime: 14, // Heavy truck time
+    rainySeasonTime: 18,
+    securityLevel: 'medium',
+    checkpoints: 8,
+    notes: 'Major corridor via East region. Road conditions generally good but high traffic.',
+  },
+
+  // Yaoundé -> Garoua (Direct Calculation)
+  {
+    id: 'yaounde-garoua',
+    origin: 'yaounde',
+    destination: 'garoua',
+    distance: 1130, // Yaoundé -> Ngaoundéré -> Garoua
+    roadCondition: 'paved',
+    drySeasonTime: 19, 
+    rainySeasonTime: 24,
+    securityLevel: 'medium',
+    checkpoints: 12,
+    notes: 'Includes navigation of the Falaise de Ngaoundéré. Brake checks required.',
+  },
+
+  // Yaoundé -> Maroua (Far North)
+  {
+    id: 'yaounde-maroua',
+    origin: 'yaounde',
+    destination: 'maroua',
+    distance: 1350,
+    roadCondition: 'paved',
+    drySeasonTime: 24, // Full day + driving
+    rainySeasonTime: 30,
+    securityLevel: 'high',
+    checkpoints: 15,
+    notes: 'High security vigilance required past Garoua.',
+  },
+
+  // Douala -> Ngaoundéré (Via Yaoundé bypass or Bafoussam)
+  {
+    id: 'douala-ngaoundere',
+    origin: 'douala',
+    destination: 'ngaoundere',
+    distance: 1100,
+    roadCondition: 'mixed',
+    drySeasonTime: 20,
+    rainySeasonTime: 26,
+    securityLevel: 'medium',
+    checkpoints: 10,
+    notes: 'Calculated via Yarbang route.',
+  },
+
+  // Douala -> Garoua
+  {
+    id: 'douala-garoua',
+    origin: 'douala',
+    destination: 'garoua',
+    distance: 1380,
+    roadCondition: 'mixed',
+    drySeasonTime: 25,
+    rainySeasonTime: 32,
+    securityLevel: 'medium',
+    checkpoints: 14,
+  },
+
+  // ============================================
+  // WESTERN / NORTH-WEST CONNECTIONS
+  // ============================================
+
+  // Douala -> Bafoussam (Crucial Hub)
+  {
+    id: 'douala-bafoussam',
+    origin: 'douala',
+    destination: 'bafoussam',
+    distance: 270,
+    roadCondition: 'paved',
+    drySeasonTime: 5,
+    rainySeasonTime: 6,
+    securityLevel: 'low',
+    checkpoints: 4,
+    notes: 'Heavy truck traffic, mountainous sections.',
+  },
+
+  // Douala -> Bamenda
+  {
+    id: 'douala-bamenda',
+    origin: 'douala',
+    destination: 'bamenda',
+    distance: 350,
+    roadCondition: 'paved',
+    drySeasonTime: 7,
+    rainySeasonTime: 9,
+    securityLevel: 'medium',
+    checkpoints: 6,
+    notes: 'Security situation variable in entry to NW.',
+  },
+
+  // Yaoundé -> Bamenda
+  {
+    id: 'yaounde-bamenda',
+    origin: 'yaounde',
+    destination: 'bamenda',
+    distance: 360, // Via Bafoussam
+    roadCondition: 'paved',
+    drySeasonTime: 7,
+    rainySeasonTime: 9,
+    securityLevel: 'medium',
+    checkpoints: 6,
+  }
   // ADD MORE ROUTES AS YOU COLLECT DATA
   // Use this template for new routes:
   /*
@@ -205,24 +407,7 @@ export const routes: Route[] = [
   },
   */
 ];
-
-// Helper functions
-export function findRoute(origin: string, destination: string): Route | null {
-  // Try direct route
-  let route = routes.find(
-    r => r.origin === origin && r.destination === destination
-  );
-  
-  // Try reverse route
-  if (!route) {
-    route = routes.find(
-      r => r.origin === destination && r.destination === origin
-    );
-  }
-  
-  return route || null;
-}
-
+ // Helper functions
 export function getRouteById(id: string): Route | undefined {
   return routes.find(r => r.id === id);
 }

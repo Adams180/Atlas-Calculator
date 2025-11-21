@@ -37,14 +37,17 @@ export function validateCalculatorInput(input: CalculatorInput): {
     return { valid: true, errors: {} };
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors: Record<string, string> = {};
-      error.errors.forEach((err) => {
-        if (err.path.length > 0) {
-          errors[err.path[0] as string] = err.message;
-        }
-      });
-      return { valid: false, errors };
+  const errors: Record<string, string> = {};
+
+  error.issues.forEach((issue) => {
+    if (issue.path.length > 0) {
+      errors[issue.path[0] as string] = issue.message;
     }
+  });
+
+  return { valid: false, errors };
+}
+
     return { valid: false, errors: { general: 'Validation failed' } };
   }
 }

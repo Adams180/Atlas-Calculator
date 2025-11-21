@@ -1,39 +1,15 @@
-/**
- * Root layout component
- */
-
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import { siteConfig } from '@/config/siteConfig';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: siteConfig.name,
-  description: siteConfig.description,
-  authors: [{ name: siteConfig.author.name, url: siteConfig.url }],
+  title: 'Atlas - NGO Supply Chain Calculator',
+  description: 'Get instant, data-driven delivery time and cost estimates for humanitarian supply chain operations across Cameroon.',
+  keywords: ['logistics', 'supply chain', 'NGO', 'humanitarian', 'Cameroon', 'Africa', 'calculator'],
+  authors: [{ name: 'Adamou Ben Adamou' }],
   openGraph: {
+    title: 'Atlas - NGO Supply Chain Calculator',
+    description: 'Instant logistics estimates for humanitarian operations in Cameroon',
     type: 'website',
-    locale: 'en_US',
-    url: siteConfig.url,
-    title: siteConfig.name,
-    description: siteConfig.description,
-    siteName: siteConfig.name,
-    images: [
-      {
-        url: siteConfig.ogImage,
-        width: 1200,
-        height: 630,
-        alt: siteConfig.name,
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: siteConfig.name,
-    description: siteConfig.description,
-    images: [siteConfig.ogImage],
   },
 };
 
@@ -44,7 +20,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link 
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" 
+          rel="stylesheet" 
+        />
+      </head>
+      <body className="min-h-screen bg-gradient-page">
         {children}
       </body>
     </html>
